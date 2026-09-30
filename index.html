@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="uk" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dat.A Lab — Симулятор СУБД та Основи Баз Даних</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dataBlue: '#0284c7',
+                        dataDark: '#0f172a',
+                        dataPanel: '#1e293b',
+                        dataBorder: '#334155'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0b0f19;
+            color: #f1f5f9;
+        }
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .dat-window {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+        .dat-menu-bar {
+            background-color: #1e293b;
+            border-bottom: 1px solid #334155;
+        }
+        .pulse-target {
+            animation: pulse-border 2s infinite;
+        }
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(14, 165, 233, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); }
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0284c7;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-2 md:p-6 selection:bg-sky-500 selection:text-white">
+
+    <!-- TOP STATUS BAR -->
+    <header id="main-header" class="w-full max-w-6xl mx-auto mb-4 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-2xl p-4 flex flex-wrap justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-sky-600 flex items-center justify-center text-white font-bold shadow-md shadow-sky-600/30">
+                <i class="fa-solid fa-database text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-extrabold text-sky-400 text-base md:text-lg leading-none" id="header-title">dat.A Lab</h1>
+                <p class="text-xs text-slate-400 mt-1" id="header-subtitle">Симулятор СУБД та Структура Даних (9 клас)</p>
+            </div>
+        </div>
+
+        <!-- Status Indicators -->
+        <div class="flex items-center gap-4 md:gap-6 text-sm">
+            <!-- Lives System -->
+            <div class="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800" title="Залишок спроб">
+                <span class="text-xs text-slate-400 mr-1 hidden sm:inline">Спроби:</span>
+                <div id="lives-container" class="flex gap-1 text-rose-500 text-sm">
+                    <i class="fa-solid fa-heart"></i>
+                    <i class="fa-solid fa-heart"></i>
+                    <i class="fa-solid fa-heart"></i>
+                </div>
+            </div>
+
+            <!-- XP Score -->
+            <div class="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+                <i class="fa-solid fa-bolt text-amber-400"></i>
+                <span class="text-xs text-slate-400 hidden sm:inline">Бали:</span>
+                <span id="score-display" class="font-mono font-bold text-amber-300">0</span>
+            </div>
+
+            <!-- Level Badge -->
+            <div class="flex items-center gap-2 bg-sky-950/60 border border-sky-500/30 px-3 py-1.5 rounded-xl text-sky-300 text-xs font-semibold">
+                <i class="fa-solid fa-layer-group"></i>
+                <span id="level-badge">Етап 1/4</span>
+            </div>
+        </div>
+
+        <!-- Global Progress Bar -->
+        <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+            <div id="global-progress" class="bg-gradient-to-r from-sky-500 via-indigo-500 to-emerald-500 h-full w-0 transition-all duration-500"></div>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE CONTAINER -->
+    <main class="w-full max-w-6xl mx-auto flex-1 flex flex-col justify-center">
+
+        <!-- START / WELCOME SCREEN -->
+        <section id="start-screen" class="dat-window rounded-2xl p-6 md:p-10 max-w-3xl mx-auto my-auto text-center border border-slate-800">
+            <div class="w-16 h-16 bg-sky-500/10 border border-sky-500/30 rounded-2xl mx-auto flex items-center justify-center text-sky-400 text-2xl mb-4">
+                <i class="fa-solid fa-server"></i>
+            </div>
+            <h2 class="text-2xl md:text-3xl font-extrabold text-white mb-3">Онлайнова СУБД dat.A & Реляційні БД</h2>
+            <p class="text-slate-300 text-sm md:text-base mb-6 leading-relaxed max-w-xl mx-auto">
+                Опануйте принципи побудови баз даних, визначення полів, записів, унікальних ключів та розберіться з роботою в середовищі веб-СУБД **dat.A**.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8 text-left text-xs">
+                <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 flex gap-3 items-start">
+                    <i class="fa-solid fa-table text-sky-400 text-base mt-0.5"></i>
+                    <div>
+                        <div class="font-bold text-slate-200">1. Аналіз елементів БД</div>
+                        <div class="text-slate-400">Поля, записи, класифікація та ключі</div>
+                    </div>
+                </div>
+                <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 flex gap-3 items-start">
+                    <i class="fa-solid fa-bars text-emerald-400 text-base mt-0.5"></i>
+                    <div>
+                        <div class="font-bold text-slate-200">2. Меню СУБД dat.A</div>
+                        <div class="text-slate-400">Робота з "Файл", "Створити", "Дані"</div>
+                    </div>
+                </div>
+                <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 flex gap-3 items-start">
+                    <i class="fa-solid fa-key text-amber-400 text-base mt-0.5"></i>
+                    <div>
+                        <div class="font-bold text-slate-200">3. Конструктор ключів</div>
+                        <div class="text-slate-400">Вибір Primary Key та проектування</div>
+                    </div>
+                </div>
+                <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 flex gap-3 items-start">
+                    <i class="fa-solid fa-file-export text-purple-400 text-base mt-0.5"></i>
+                    <div>
+                        <div class="font-bold text-slate-200">4. Операції та формати</div>
+                        <div class="text-slate-400">Файли .DTA, SQLite .db, CSV імпорт</div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="px-8 py-3.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl transition shadow-lg shadow-sky-600/25 flex items-center justify-center gap-2 mx-auto text-base">
+                <i class="fa-solid fa-play"></i> Розпочати Лабораторну
+            </button>
+        </section>
+
+        <!-- LEVEL 1: DATABASE STRUCTURE ANALYSIS -->
+        <section id="level-1" class="hidden dat-window rounded-2xl p-4 md:p-6">
+            <div class="flex justify-between items-center pb-4 mb-4 border-b border-slate-800">
+                <div>
+                    <span class="text-xs font-bold text-sky-400 uppercase tracking-wider">Етап 1</span>
+                    <h2 class="text-lg md:text-xl font-bold text-white">Аналіз Схеми Таблиці та Елементів</h2>
+                </div>
+                <span id="l1-step-badge" class="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-700">1/3</span>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <!-- Interactive Simulated dat.A Table Window -->
+                <div class="lg:col-span-7 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    <div class="dat-menu-bar p-2 rounded-t-lg flex items-center justify-between text-xs text-slate-300 mb-2">
+                        <div class="flex gap-3">
+                            <span class="font-bold text-sky-400">dat.A</span>
+                            <span class="text-slate-400">Файл</span>
+                            <span class="text-slate-400">Створити</span>
+                            <span class="text-slate-400">Дані</span>
+                            <span class="text-slate-400">Таблиці</span>
+                        </div>
+                        <span class="code-font text-slate-500 text-[10px]">Таблиця: "Учні"</span>
+                    </div>
+
+                    <!-- Visual Table Data -->
+                    <div class="overflow-x-auto rounded border border-slate-800">
+                        <table class="w-full text-left text-xs text-slate-300 border-collapse" id="l1-sim-table">
+                            <thead>
+                                <tr class="bg-slate-900 text-slate-200 border-b border-slate-800 font-semibold" id="l1-th-row">
+                                    <th class="p-2 border-r border-slate-800 text-amber-400 cursor-pointer hover:bg-slate-800" onclick="handleL1TableClick('key')"><i class="fa-solid fa-key mr-1"></i>ID_Учня</th>
+                                    <th class="p-2 border-r border-slate-800 cursor-pointer hover:bg-slate-800" onclick="handleL1TableClick('field')">Прізвище</th>
+                                    <th class="p-2 border-r border-slate-800 cursor-pointer hover:bg-slate-800" onclick="handleL1TableClick('field')">Ім'я</th>
+                                    <th class="p-2 border-r border-slate-800 cursor-pointer hover:bg-slate-800" onclick="handleL1TableClick('field')">Клас</th>
+                                    <th class="p-2 cursor-pointer hover:bg-slate-800" onclick="handleL1TableClick('field')">Дата_Народження</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/60 code-font">
+                                <tr class="hover:bg-sky-950/30 cursor-pointer" onclick="handleL1TableClick('record')">
+                                    <td class="p-2 border-r border-slate-800 font-bold text-amber-300">101</td>
+                                    <td class="p-2 border-r border-slate-800">Шевченко</td>
+                                    <td class="p-2 border-r border-slate-800">Максим</td>
+                                    <td class="p-2 border-r border-slate-800">9-А</td>
+                                    <td class="p-2">12.04.2009</td>
+                                </tr>
+                                <tr class="hover:bg-sky-950/30 cursor-pointer" onclick="handleL1TableClick('record')">
+                                    <td class="p-2 border-r border-slate-800 font-bold text-amber-300">102</td>
+                                    <td class="p-2 border-r border-slate-800">Бондаренко</td>
+                                    <td class="p-2 border-r border-slate-800">Анна</td>
+                                    <td class="p-2 border-r border-slate-800">9-Б</td>
+                                    <td class="p-2">25.08.2009</td>
+                                </tr>
+                                <tr class="hover:bg-sky-950/30 cursor-pointer" onclick="handleL1TableClick('record')">
+                                    <td class="p-2 border-r border-slate-800 font-bold text-amber-300">103</td>
+                                    <td class="p-2 border-r border-slate-800">Коваленко</td>
+                                    <td class="p-2 border-r border-slate-800">Артем</td>
+                                    <td class="p-2 border-r border-slate-800">9-А</td>
+                                    <td class="p-2">03.11.2008</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-2 text-[11px] text-slate-500 flex justify-between">
+                        <span>Всього записів: 3</span>
+                        <span>Полів: 5</span>
+                    </div>
+                </div>
+
+                <!-- Theory & Question Side -->
+                <div class="lg:col-span-5 flex flex-col justify-between space-y-4">
+                    <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+                        <h3 class="font-semibold text-sky-300 mb-2 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-circle-question"></i> <span id="l1-q-title">Питання</span>
+                        </h3>
+                        <p id="l1-question-text" class="text-sm text-slate-200 mb-4">
+                            Завантаження...
+                        </p>
+
+                        <!-- Choice Options -->
+                        <div id="l1-options" class="space-y-2">
+                            <!-- Dynamic buttons -->
+                        </div>
+                    </div>
+
+                    <!-- Feedback Box -->
+                    <div id="l1-feedback" class="hidden p-3.5 rounded-xl text-xs md:text-sm font-medium transition-all"></div>
+
+                    <button id="l1-next-btn" onclick="nextL1Step()" class="hidden w-full py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl transition text-sm">
+                        Наступне завдання <i class="fa-solid fa-arrow-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- LEVEL 2: DAT.A MENU & OPERATIONS SIMULATOR -->
+        <section id="level-2" class="hidden dat-window rounded-2xl p-4 md:p-6">
+            <div class="flex justify-between items-center pb-4 mb-4 border-b border-slate-800">
+                <div>
+                    <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider">Етап 2</span>
+                    <h2 class="text-lg md:text-xl font-bold text-white">Меню та Функціонал СУБД dat.A</h2>
+                </div>
+                <span id="l2-step-badge" class="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-700">1/3</span>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Interactive Menu Bar Simulator -->
+                <div class="lg:col-span-5 bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+                    <div>
+                        <div class="text-xs text-slate-400 mb-2 flex items-center gap-1.5">
+                            <i class="fa-solid fa-sitemap text-emerald-400"></i> Симуляція навігації dat.A:
+                        </div>
+                        <div class="dat-menu-bar p-2 rounded-lg space-y-2 text-xs">
+                            <div class="flex gap-2 font-semibold text-slate-300 border-b border-slate-700/50 pb-2">
+                                <span class="bg-slate-800 px-2 py-1 rounded text-sky-400">Файл</span>
+                                <span class="bg-slate-800 px-2 py-1 rounded text-amber-400">Створити</span>
+                                <span class="bg-slate-800 px-2 py-1 rounded text-purple-400">Дані</span>
+                                <span class="bg-slate-800 px-2 py-1 rounded text-emerald-400">Таблиці</span>
+                                <span class="bg-slate-800 px-2 py-1 rounded text-rose-400">Запити</span>
+                            </div>
+                            <div id="l2-menu-preview" class="p-3 bg-slate-900 rounded border border-slate-800 text-slate-300 space-y-1 code-font text-[11px]">
+                                <!-- Dynamic menu preview text -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 p-3 bg-slate-900/60 rounded-lg border border-slate-800/80 text-[11px] text-slate-400">
+                        <i class="fa-solid fa-lightbulb text-amber-400 mr-1"></i>
+                        Підказка: Звертайте увагу на розділи та призначення форматів (.DTA, SQLite, CSV).
+                    </div>
+                </div>
+
+                <!-- Scenario Questions -->
+                <div class="lg:col-span-7 flex flex-col justify-between space-y-4">
+                    <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+                        <h3 class="font-semibold text-emerald-300 mb-2 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-user-gear"></i> Практичний сценарій у СУБД
+                        </h3>
+                        <p id="l2-question-text" class="text-sm text-slate-200 mb-4">
+                            Завантаження...
+                        </p>
+
+                        <div id="l2-options" class="space-y-2">
+                            <!-- Dynamic Option Buttons -->
+                        </div>
+                    </div>
+
+                    <!-- Feedback Box -->
+                    <div id="l2-feedback" class="hidden p-3.5 rounded-xl text-xs md:text-sm font-medium transition-all"></div>
+
+                    <button id="l2-next-btn" onclick="nextL2Step()" class="hidden w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition text-sm">
+                        Наступне завдання <i class="fa-solid fa-arrow-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- LEVEL 3: PRIMARY KEY & TABLE DESIGNER -->
+        <section id="level-3" class="hidden dat-window rounded-2xl p-4 md:p-6">
+            <div class="flex justify-between items-center pb-4 mb-4 border-b border-slate-800">
+                <div>
+                    <span class="text-xs font-bold text-amber-400 uppercase tracking-wider">Етап 3</span>
+                    <h2 class="text-lg md:text-xl font-bold text-white">Проектування Полів та Первинного Ключа</h2>
+                </div>
+                <span id="l3-step-badge" class="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-700">1/3</span>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Schema Preview Visualizer -->
+                <div class="lg:col-span-5 bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+                    <div>
+                        <div class="text-xs text-slate-400 mb-2 flex items-center gap-1.5">
+                            <i class="fa-solid fa-key text-amber-400"></i> Конструктор Схеми Таблиці:
+                        </div>
+                        <div id="l3-schema-box" class="space-y-2">
+                            <!-- Dynamic Table Schema Badges -->
+                        </div>
+                    </div>
+                    <div class="mt-4 p-3 bg-amber-950/20 border border-amber-500/20 rounded-lg text-[11px] text-amber-200/80">
+                        <i class="fa-solid fa-shield-halved mr-1 text-amber-400"></i>
+                        Первинний ключ (Primary Key) — це поле, значення якого є **унікальним** для кожного запису і не повторюється!
+                    </div>
+                </div>
+
+                <!-- Theory & Options -->
+                <div class="lg:col-span-7 flex flex-col justify-between space-y-4">
+                    <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+                        <h3 class="font-semibold text-amber-300 mb-2 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-diagram-project"></i> Завдання на проектування
+                        </h3>
+                        <p id="l3-question-text" class="text-sm text-slate-200 mb-4">
+                            Завантаження...
+                        </p>
+
+                        <div id="l3-options" class="space-y-2">
+                            <!-- Dynamic Buttons -->
+                        </div>
+                    </div>
+
+                    <!-- Feedback Box -->
+                    <div id="l3-feedback" class="hidden p-3.5 rounded-xl text-xs md:text-sm font-medium transition-all"></div>
+
+                    <button id="l3-next-btn" onclick="nextL3Step()" class="hidden w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl transition text-sm">
+                        Наступне завдання <i class="fa-solid fa-arrow-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- LEVEL 4: SYSTEM OPERATIONAL SCENARIOS (DTA, CSV, SCHEMA LOCK) -->
+        <section id="level-4" class="hidden dat-window rounded-2xl p-4 md:p-6">
+            <div class="flex justify-between items-center pb-4 mb-4 border-b border-slate-800">
+                <div>
+                    <span class="text-xs font-bold text-purple-400 uppercase tracking-wider">Етап 4</span>
+                    <h2 class="text-lg md:text-xl font-bold text-white">Оперативний Симулятор Практики dat.A</h2>
+                </div>
+                <span id="l4-step-badge" class="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-700">1/3</span>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- System Inspector Box -->
+                <div class="lg:col-span-5 bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+                    <div>
+                        <div class="text-xs text-slate-400 mb-2 flex items-center gap-1.5">
+                            <i class="fa-solid fa-terminal text-purple-400"></i> Журнал операцій СУБД:
+                        </div>
+                        <div class="p-3 bg-slate-900 rounded border border-slate-800 code-font text-xs space-y-2">
+                            <div class="text-slate-400"><span class="text-sky-400">[SYSTEM]:</span> Engine SQLite Loaded</div>
+                            <div class="text-slate-400"><span class="text-emerald-400">[STORAGE]:</span> localStorage Ready</div>
+                            <div id="l4-console-log" class="text-purple-300 font-semibold border-t border-slate-800 pt-2">
+                                > Очікування команди користувача...
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 p-3 bg-purple-950/20 border border-purple-500/20 rounded-lg text-[11px] text-purple-200/80">
+                        <i class="fa-solid fa-circle-exclamation mr-1 text-purple-400"></i>
+                        Важливе правило dat.A: після створення таблиці змінювати її структуру (схему) **не можна**!
+                    </div>
+                </div>
+
+                <!-- Questions -->
+                <div class="lg:col-span-7 flex flex-col justify-between space-y-4">
+                    <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+                        <h3 class="font-semibold text-purple-300 mb-2 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-gears"></i> Системна задача
+                        </h3>
+                        <p id="l4-question-text" class="text-sm text-slate-200 mb-4">
+                            Завантаження...
+                        </p>
+
+                        <div id="l4-options" class="space-y-2">
+                            <!-- Dynamic Options -->
+                        </div>
+                    </div>
+
+                    <!-- Feedback Box -->
+                    <div id="l4-feedback" class="hidden p-3.5 rounded-xl text-xs md:text-sm font-medium transition-all"></div>
+
+                    <button id="l4-next-btn" onclick="nextL4Step()" class="hidden w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition text-sm">
+                        Завершити лабораторну <i class="fa-solid fa-check-double ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- FINAL SUMMARY & CERTIFICATE SCREEN -->
+        <section id="cert-screen" class="hidden dat-window rounded-2xl p-6 md:p-8 max-w-3xl mx-auto my-auto text-center border border-slate-800">
+            <div class="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl mx-auto flex items-center justify-center text-emerald-400 text-3xl mb-4">
+                <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+
+            <h2 class="text-2xl md:text-3xl font-extrabold text-white mb-1">Лабораторну Роботу Завершено!</h2>
+            <p class="text-slate-400 text-xs md:text-sm mb-6">Результати опанування теми «Поняття таблиці, поля, запису, ключа та СУБД dat.A»</p>
+
+            <!-- Metrics Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    <div class="text-xs text-slate-400 mb-1">Набрано балів</div>
+                    <div id="final-score" class="text-xl font-bold text-amber-400">0</div>
+                </div>
+                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    <div class="text-xs text-slate-400 mb-1">Успішність</div>
+                    <div id="final-percent" class="text-xl font-bold text-emerald-400">0%</div>
+                </div>
+                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    <div class="text-xs text-slate-400 mb-1">Правильних ответов</div>
+                    <div id="final-answers" class="text-xl font-bold text-sky-400">0/0</div>
+                </div>
+                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    <div class="text-xs text-slate-400 mb-1">Залишок спроб</div>
+                    <div id="final-lives" class="text-xl font-bold text-rose-400">0</div>
+                </div>
+            </div>
+
+            <!-- Qualification Box -->
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 mb-6">
+                <div class="text-xs uppercase tracking-widest text-slate-400 font-semibold mb-1">Оцінка за роботу:</div>
+                <div id="final-rank" class="text-xl md:text-2xl font-extrabold text-sky-400">
+                    Database Administrator
+                </div>
+                <p id="final-feedback-text" class="text-xs text-slate-300 mt-2">
+                    Відмінний результат! Ви чудово засвоїли поняття реляційних баз даних та інтерфейс СУБД dat.A.
+                </p>
+            </div>
+
+            <button onclick="restartInteractive()" class="px-8 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl transition shadow-lg flex items-center justify-center gap-2 mx-auto text-sm">
+                <i class="fa-solid fa-rotate-right"></i> Пройти ще раз
+            </button>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="w-full max-w-6xl mx-auto mt-4 text-center text-xs text-slate-600 py-2">
+        <p>Інтерактивний навчальний тренажер • Інформатика 9 клас • СУБД dat.A</p>
+    </footer>
+
+    <script>
+        /* ==========================================================================
+           CONFIG OBJECT — Зручна конфігурація завдань вчителем
+           ========================================================================== */
+        const CONFIG = {
+            pointsPerCorrect: 100,
+            maxLives: 3,
+
+            // LEVEL 1: DATABASE ELEMENTS
+            level1Tasks: [
+                {
+                    title: "Поняття 'Поле' та 'Запис'",
+                    question: "Що в реляційній таблиці бази даних називається 'Записом' (Record)?",
+                    options: [
+                        { text: "Один рядок таблиці, який містить повний набір даних про один конкретний об'єкт", correct: true, hint: "Правильно! Рядок = Запис (екземпляр об'єкта), Стовпець = Поле (атрибут)." },
+                        { text: "Один стовпець таблиці з однойменною назвою та типом даних", correct: false, hint: "Стовпець у таблиці називається Полем (Field)." },
+                        { text: "Назва всієї таблиці в базі даних", correct: false, hint: "Назва таблиці ідентифікує всю сутність." }
+                    ]
+                },
+                {
+                    title: "Характеристика Поля",
+                    question: "У таблиці 'Учні' стовпець 'Дата_Народження' це — ...",
+                    options: [
+                        { text: "Поле таблиці, що має один визначений тип даних для всіх записів", correct: true, hint: "Вірно! Поле визначає окрему властивість або атрибут об'єкта." },
+                        { text: "Окремий запис бази даних", correct: false, hint: "Ні, запис відповідає за цілий рядок даних." },
+                        { text: "Первинний ключ за замовчуванням", correct: false, hint: "Дати народження можуть збігатися в різних учнів, тому це не унікальний ключ." }
+                    ]
+                },
+                {
+                    title: "Поняття 'Первинний ключ'",
+                    question: "Для чого призначений Первинний ключ (Primary Key) в таблиці СУБД?",
+                    options: [
+                        { text: "Для однозначної та унікальної ідентифікації кожного запису в таблиці", correct: true, hint: "Чудово! Значення ключа не можуть повторюватися або бути порожніми." },
+                        { text: "Для швидкого видалення всієї таблиці", correct: false, hint: "Ключ використовується для ідентифікації запису, а не для видалення структури." },
+                        { text: "Для автоматичного перекладу назв полів", correct: false, hint: "Ключ є елементом структури зв'язків та ідентифікації." }
+                    ]
+                }
+            ],
+
+            // LEVEL 2: DAT.A MENU SIMULATOR
+            level2Tasks: [
+                {
+                    question: "Вам потрібно завантажити раніше збережену базу даних із локального сховища браузера. До якого пункту меню СУБД dat.A слід звернутися?",
+                    menuPreview: "Меню: Файл → Сховище баз даних",
+                    options: [
+                        { text: "Файл → Сховище баз даних", correct: true, hint: "Саме так! Відкриється діалогове вікно зі списком збережених у localStorage баз." },
+                        { text: "Створити → Таблиця", correct: false, hint: "Це меню створює нову порожню таблицю." },
+                        { text: "Таблиці → Створені таблиці", correct: false, hint: "Це меню показує лише таблиці всередині ПОТОЧНОЇ відкритої бази даних." }
+                    ]
+                },
+                {
+                    question: "Де в СУБД dat.A можна переглянути створену таблицю або виконаний запит (позначений зірочкою *)?",
+                    menuPreview: "Динамічне меню: Дані",
+                    options: [
+                        { text: "У динамічному меню 'Дані'", correct: true, hint: "Вірно! У меню 'Дані' з'являються посилання на всі створені таблиці та результати запитів." },
+                        { text: "У меню 'Допомога'", correct: false, hint: "Меню 'Допомога' містить лише підказки та відомості про програму." },
+                        { text: "У меню 'Файл' → 'Відомості'", correct: false, hint: "Це меню показує лише загальну інформацію про файл бази." }
+                    ]
+                },
+                {
+                    question: "Який пункт меню дозволяє виконати збережений SQL-запит або відредагувати його?",
+                    menuPreview: "Меню: Запити → Створені запити",
+                    options: [
+                        { text: "Запити → Створені запити (Виконати / Змінити)", correct: true, hint: "Точно! Відкриває список запитів з кнопками дій." },
+                        { text: "Файл → Відкрити з .DTA", correct: false, hint: "Цей пункт імпортує цілий файл бази даних з диска." },
+                        { text: "Дані → *запит", correct: false, hint: "У 'Дані' можна лише переглянути готові результати виконаного запиту." }
+                    ]
+                }
+            ],
+
+            // LEVEL 3: PRIMARY KEY & SCHEMA DESIGN
+            level3Tasks: [
+                {
+                    question: "Ви проектуєте таблицю 'Книги' в СУБД dat.A. Яке з полів найкраще обрати як Первинний ключ?",
+                    schema: ["ISBN_Код (Текст/Число)", "Назва_Книги", "Автор", "Рік_Видання", "Ціна"],
+                    options: [
+                        { text: "ISBN_Код (унікальний міжнародний номер)", correct: true, hint: "Блискуче! Назви книги чи автори можуть повторюватися, а ISBN — завжди унікальний." },
+                        { text: "Автор", correct: false, hint: "Один автор пише багато книжок, значення повторюватимуться!" },
+                        { text: "Рік_Видання", correct: false, hint: "У той самий рік виходить безліч книжок." }
+                    ]
+                },
+                {
+                    question: "У таблиці 'Товари' є поля: 'Назва', 'Категорія', 'Ціна', 'Артикул'. Чому полі 'Назва' НЕ рекомендовано робити первинним ключем?",
+                    schema: ["Артикул (PK)", "Назва", "Категорія", "Ціна"],
+                    options: [
+                        { text: "Назви двох різних товарів можуть збігатися або редагуватися, втрачаючи унікальність", correct: true, hint: "Вірно! Ключ має бути суворо унікальним та незмінним. Для цього використовують 'Артикул'." },
+                        { text: "Тому що назва не може містити букви", correct: false, hint: "Текстові поля прекрасно містять букви." },
+                        { text: "СУБД dat.A забороняє використовувати текст у таблицях", correct: false, hint: "dat.A чудово працює з текстовими даними." }
+                    ]
+                },
+                {
+                    question: "Ви створюєте нову таблицю 'Автівки'. Які характеристики ОБОВ'ЯЗКОВО повинно мати поле, обране як Primary Key?",
+                    schema: ["VIN_Код_Авто (PK)", "Марка", "Модель", "Колір"],
+                    options: [
+                        { text: "Унікальність кожного значення та відсутність порожніх значень (NOT NULL)", correct: true, hint: " Абсолютно вірно!" },
+                        { text: "Поле має містити лише дробові числа", correct: false, hint: "Тип даних може бути і текстовим (наприклад, VIN-код чи серія паспорта)." },
+                        { text: "Значення повинні змінюватися щодня", correct: false, hint: "Навпаки, первинні ключі мають бути максимально стабільними." }
+                    ]
+                }
+            ],
+
+            // LEVEL 4: OPERATIONAL SYSTEM SCENARIOS
+            level4Tasks: [
+                {
+                    question: "Ви створили таблицю в СУБД dat.A, зберегли її та ввели 10 записів. Чи можна тепер змінити її структуру (додати або видалити поле)?",
+                    log: "> WARN: Structure modification query requested",
+                    options: [
+                        { text: "Ні, у СУБД dat.A змінити структуру (схему) вже створеної таблиці не можна!", correct: true, hint: "Пам'ятайте це правило dat.A: схему створеної таблиці редагувати не можна!" },
+                        { text: "Так, через меню 'Дані' → 'Редагувати схему'", correct: false, hint: "Такого пункту немає, зміна структури блокується." },
+                        { text: "Так, автоматично при збереженні", correct: false, hint: "Структура фіксується при створенні." }
+                    ]
+                },
+                {
+                    question: "Вам потрібно зберегти резервну копію вашої бази даних у ВЛАСНОМУ форматі застосунку dat.A для перенесення на інший комп'ютер. Яку команду обрати?",
+                    log: "> FILE EXPORT: Native Application Format",
+                    options: [
+                        { text: "Файл → Зберегти як .DTA", correct: true, hint: "Чудово! Файл з розширенням .DTA зберігає базу у рідному форматі dat.A." },
+                        { text: "Файл → Експорт в sqlite DB", correct: false, hint: "Це експорт у стандартний формат SQLite (.db), а не у власний .DTA." },
+                        { text: "Таблиці → Створити", correct: false, hint: "Це створює нову таблицю." }
+                    ]
+                },
+                {
+                    question: "Учень підготував список класів у програмі Excel і зберіг у текстовому форматі з розділювачами. Як швидко імпортувати ці дані в dat.A?",
+                    log: "> IMPORT: Delimited text file import",
+                    options: [
+                        { text: "Файл → Імпорт даних з CSV", correct: true, hint: "Вірно! Формат CSV призначений для обміну табличними даними." },
+                        { text: "Файл → Відкрити з .DTA", correct: false, hint: "Файл CSV не є файлом .DTA." },
+                        { text: "Запити → Написати SQL-запит", correct: false, hint: "Для імпорту файлів є готовий зручний пункт 'Імпорт даних з CSV'." }
+                    ]
+                }
+            ]
+        };
+
+        // GLOBAL GAME STATE
+        let gameState = {
+            currentLevel: 1,
+            l1Step: 0,
+            l2Step: 0,
+            l3Step: 0,
+            l4Step: 0,
+            score: 0,
+            lives: CONFIG.maxLives,
+            correctCount: 0,
+            totalAnswered: 0
+        };
+
+        // INITIALIZATION
+        window.onload = function() {
+            updateHeaderUI();
+        };
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('level-1').classList.remove('hidden');
+            loadL1Step();
+        }
+
+        function updateHeaderUI() {
+            document.getElementById('score-display').innerText = gameState.score;
+            document.getElementById('level-badge').innerText = `Етап ${gameState.currentLevel}/4`;
+
+            // Render Hearts
+            const livesContainer = document.getElementById('lives-container');
+            livesContainer.innerHTML = '';
+            for (let i = 0; i < CONFIG.maxLives; i++) {
+                const heart = document.createElement('i');
+                if (i < gameState.lives) {
+                    heart.className = 'fa-solid fa-heart text-rose-500';
+                } else {
+                    heart.className = 'fa-regular fa-heart text-slate-700';
+                }
+                livesContainer.appendChild(heart);
+            }
+
+            // Global Progress
+            const totalSteps = CONFIG.level1Tasks.length + CONFIG.level2Tasks.length + CONFIG.level3Tasks.length + CONFIG.level4Tasks.length;
+            const pct = Math.min(100, Math.round((gameState.totalAnswered / totalSteps) * 100));
+            document.getElementById('global-progress').style.width = `${pct}%`;
+        }
+
+        function reduceLife() {
+            gameState.lives--;
+            updateHeaderUI();
+            if (gameState.lives <= 0) {
+                finishGame();
+            }
+        }
+
+        function addScore(pts) {
+            gameState.score += pts;
+            updateHeaderUI();
+        }
+
+        /* ==========================================================================
+           LEVEL 1 LOGIC — TABLE ANALYSIS
+           ========================================================================== */
+        function loadL1Step() {
+            const task = CONFIG.level1Tasks[gameState.l1Step];
+            document.getElementById('l1-step-badge').innerText = `${gameState.l1Step + 1}/${CONFIG.level1Tasks.length}`;
+            document.getElementById('l1-q-title').innerText = task.title;
+            document.getElementById('l1-question-text').innerText = task.question;
+            document.getElementById('l1-feedback').classList.add('hidden');
+            document.getElementById('l1-next-btn').classList.add('hidden');
+
+            renderL1Options(task);
+        }
+
+        function renderL1Options(task) {
+            const container = document.getElementById('l1-options');
+            container.innerHTML = '';
+
+            task.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-3 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 text-xs md:text-sm text-slate-200 transition flex items-start gap-2.5";
+                btn.innerHTML = `<span class="font-bold text-sky-400 font-mono">${String.fromCharCode(65 + idx)}.</span> <span>${opt.text}</span>`;
+                btn.onclick = () => checkL1Answer(opt, btn);
+                container.appendChild(btn);
+            });
+        }
+
+        function handleL1TableClick(type) {
+            // Visual feedback on table interaction
+            const feedback = document.getElementById('l1-feedback');
+            feedback.classList.remove('hidden');
+            if (type === 'key') {
+                feedback.className = "p-3 rounded-xl text-xs bg-amber-950/80 border border-amber-500/50 text-amber-200";
+                feedback.innerHTML = "<i class='fa-solid fa-key text-amber-400 mr-1'></i> <strong>Первинний ключ (ID_Учня):</strong> Унікальний номер запису.";
+            } else if (type === 'field') {
+                feedback.className = "p-3 rounded-xl text-xs bg-sky-950/80 border border-sky-500/50 text-sky-200";
+                feedback.innerHTML = "<i class='fa-solid fa-columns text-sky-400 mr-1'></i> <strong>Поле таблиці:</strong> Стовпець із властивістю.";
+            } else {
+                feedback.className = "p-3 rounded-xl text-xs bg-indigo-950/80 border border-indigo-500/50 text-indigo-200";
+                feedback.innerHTML = "<i class='fa-solid fa-bars text-indigo-400 mr-1'></i> <strong>Запис таблиці:</strong> Рядок з даними про конкретного учня.";
+            }
+        }
+
+        function checkL1Answer(opt, btnElem) {
+            const feedback = document.getElementById('l1-feedback');
+            feedback.classList.remove('hidden');
+
+            document.querySelectorAll('#l1-options button').forEach(b => b.disabled = true);
+            gameState.totalAnswered++;
+
+            if (opt.correct) {
+                feedback.className = "p-3.5 rounded-xl text-xs md:text-sm font-medium bg-emerald-950/90 border border-emerald-500/50 text-emerald-200";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 mr-1.5"></i> <strong>Вірно!</strong> ${opt.hint}`;
+                btnElem.classList.add('border-emerald-500', 'bg-emerald-900/40');
+                addScore(CONFIG.pointsPerCorrect);
+                gameState.correctCount++;
+            } else {
+                feedback.className = "p-3.5 rounded-xl text-xs md:text-sm font-medium bg-rose-950/90 border border-rose-500/50 text-rose-200";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-xmark text-rose-400 mr-1.5"></i> <strong>Невірно.</strong> ${opt.hint}`;
+                btnElem.classList.add('border-rose-500', 'bg-rose-900/40');
+                reduceLife();
+            }
+
+            document.getElementById('l1-next-btn').classList.remove('hidden');
+        }
+
+        function nextL1Step() {
+            gameState.l1Step++;
+            if (gameState.l1Step < CONFIG.level1Tasks.length && gameState.lives > 0) {
+                loadL1Step();
+            } else if (gameState.lives > 0) {
+                gameState.currentLevel = 2;
+                document.getElementById('level-1').classList.add('hidden');
+                document.getElementById('level-2').classList.remove('hidden');
+                updateHeaderUI();
+                loadL2Step();
+            }
+        }
+
+        /* ==========================================================================
+           LEVEL 2 LOGIC — MENU SIMULATOR
+           ========================================================================== */
+        function loadL2Step() {
+            const task = CONFIG.level2Tasks[gameState.l2Step];
+            document.getElementById('l2-step-badge').innerText = `${gameState.l2Step + 1}/${CONFIG.level2Tasks.length}`;
+            document.getElementById('l2-question-text').innerText = task.question;
+            document.getElementById('l2-menu-preview').innerText = task.menuPreview;
+            document.getElementById('l2-feedback').classList.add('hidden');
+            document.getElementById('l2-next-btn').classList.add('hidden');
+
+            renderL2Options(task);
+        }
+
+        function renderL2Options(task) {
+            const container = document.getElementById('l2-options');
+            container.innerHTML = '';
+
+            task.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-3 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 text-xs md:text-sm text-slate-200 transition flex items-start gap-2.5";
+                btn.innerHTML = `<span class="font-bold text-emerald-400 font-mono">${String.fromCharCode(65 + idx)}.</span> <span>${opt.text}</span>`;
+                btn.onclick = () => checkL2Answer(opt, btn);
+                container.appendChild(btn);
+            });
+        }
+
+        function checkL2Answer(opt, btnElem) {
+            const feedback = document.getElementById('l2-feedback');
+            feedback.classList.remove('hidden');
+
+            document.querySelectorAll('#l2-options button').forEach(b => b.disabled = true);
+            gameState.totalAnswered++;
+
+            if (opt.correct) {
+                feedback.className = "p-3.5 rounded-xl text-xs md:text-sm font-medium bg-emerald-950/90 border border-emerald-500/50 text-emerald-200";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 mr-1.5"></i> <strong>Правильно!</strong> ${opt.hint}`;
+                btnElem.classList.add('border-emerald-500', 'bg-emerald-900/40');
+                addScore(CONFIG.pointsPerCorrect);
+                gameState.correctCount++;
+            } else {
+                feedback.className = "p-3.5 rounded-xl text-xs md:text-sm font-medium bg-rose-950/90 border border-rose-500/50 text-rose-200";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-xmark text-rose-400 mr-1.5"></i> <strong>Помилка.</strong> ${opt.hint}`;
+                btnElem.classList.add('border-rose-500', 'bg-rose-900/40');
+                reduceLife();
+            }
+
+            document.getElementById('l2-next-btn').classList.remove('hidden');
+        }
+
+        function nextL2Step() {
+            gameState.l2Step++;
+            if (gameState.l2Step < CONFIG.level2Tasks.length && gameState.lives > 0) {
+                loadL2Step();
+            } else if (gameState.lives > 0) {
+                gameState.currentLevel = 3;
+                document.getElementById('level-2').classList.add('hidden');
+                document.getElementById('level-3').classList.remove('hidden');
+                updateHeaderUI();
+                loadL3Step();
+            }
+        }
+
+        /* ==========================================================================
+           LEVEL 3 LOGIC — PRIMARY KEY & SCHEMA DESIGN
+           ========================================================================== */
+        function loadL3Step() {
+            const task = CONFIG.level3Tasks[gameState.l3Step];
+            document.getElementById('l3-step-badge').innerText = `${gameState.l3Step + 1}/${CONFIG.level3Tasks.length}`;
+            document.getElementById('l3-question-text').innerText = task.question;
+
+            // Render Schema Visualizer
+            const schemaBox = document.getElementById('l3-schema-box');
+            schemaBox.innerHTML = '';
+            task.schema.forEach(field => {
+                const badge = document.createElement('div');
+                badge.className = "p-2 bg-slate-900 rounded border border-slate-800 text-xs text-slate-300 font-mono flex items-center justify-between";
+                if (field.includes("PK")) {
+                    badge.innerHTML = `<span>${field}</span> <i class="fa-solid fa-key text-amber-400"></i>`;
+                } else {
+                    badge.innerHTML = `<span>${field}</span> <i class="fa-solid fa-i-cursor text-slate-600"></i>`;
+                }
+                schemaBox.appendChild(badge);
+            });
+
+            document.getElementById('l3-feedback').classList.add('hidden');
+            document.getElementById('l3-next-btn').classList.add('hidden');
+
+            renderL3Options(task);
+        }
+
+        function renderL3Options(task) {
+            const container = document.getElementById('l3-options');
+            container.innerHTML = '';
+
+            task.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-3 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 text-xs md:text-sm text-slate-200 transition flex items-start gap-2.5";
+                btn.innerHTML = `<span class="font-bold text-amber-400 font-mono">${String.fromCharCode(65 + idx)}.</span> <span>${opt.text}</span>`;
+                btn.onclick = () => checkL3Answer(opt, btn);
+                container.appendChild(btn);
+            });
+        }
+
+        function checkL3Answer(opt, btnElem) {
+            const feedback = document.getElementById('l3-feedback');
+            feedback.classList.remove('hidden');
+
+            document.querySelectorAll('#l3-options button').forEach(b => b.disabled = true);
+            gameState.totalAnswered++;
+
+            if (opt.correct) {
+                feedback.className = "p-3.5 rounded-xl text-xs md:text-sm font-medium bg-emerald-950/90 border border-emerald-500/50 text-emerald-200";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 mr-1.5"></i> <strong>Чудово!</strong> ${opt.hint}`;
+                btnElem.classList.add('border-emerald-500', 'bg-emerald-900/40');
+                addScore(CONFIG.pointsPerCorrect);
+                gameState.correctCount++;
+            } else {
+                feedback.className = "p-3.5 rounded-xl text-xs md:text-sm font-medium bg-rose-950/90 border border-rose-500/50 text-rose-200";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-xmark text-rose-400 mr-1.5"></i> <strong>Помилка.</strong> ${opt.hint}`;
+                btnElem.classList.add('border-rose-500', 'bg-rose-900/40');
+                reduceLife();
+            }
+
+            document.getElementById('l3-next-btn').classList.remove('hidden');
+        }
+
+        function nextL3Step() {
+            gameState.l3Step++;
+            if (gameState.l3Step < CONFIG.level3Tasks.length && gameState.lives > 0) {
+                loadL3Step();
+            } else if (gameState.lives > 0) {
+                gameState.currentLevel = 4;
+                document.getElementById('level-3').classList.add('hidden');
+                document.getElementById('level-4').classList.remove('hidden');
+                updateHeaderUI();
+                loadL4Step();
+            }
+        }
+
+        /* ==========================================================================
+           LEVEL 4 LOGIC — OPERATIONAL SYSTEM SCENARIOS
+           ========================================================================== */
+        function loadL4Step() {
+            const task = CONFIG.level4Tasks[gameState.l4Step];
+            document.getElementById('l4-step-badge').innerText = `${gameState.l4Step + 1}/${CONFIG.level4Tasks.length}`;
+            document.getElementById('l4-question-text').innerText = task.question;
+            document.getElementById('l4-console-log').innerText = task.log;
+            document.getElementById('l4-feedback').classList.add('hidden');
+            document.getElementById('l4-next-btn').classList.add('hidden');
+
+            renderL4Options(task);
+        }
+
+        function renderL4Options(task) {
+            const container = document.getElementById('l4-options');
+            container.innerHTML = '';
+
+            task.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-3 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 text-xs md:text-sm text-slate-200 transition flex items-start gap-2.5";
+                btn.innerHTML = `<span class="font-bold text-purple-400 font-mono">${String.fromCharCode(65 + idx)}.</span> <span>${opt.text}</span>`;
+                btn.onclick = () => checkL4Answer(opt, btn);
+                container.appendChild(btn);
+            });
+        }
+
+        function checkL4Answer(opt, btnElem) {
+            const feedback = document.getElementById('l4-feedback');
+            feedback.classList.remove('hidden');
+
+            document.querySelectorAll('#l4-options button').forEach(b => b.disabled = true);
+            gameState.totalAnswered++;
+
+            if (opt.correct) {
+                feedback.className = "p-3.5 rounded-xl text-xs md:text-sm font-medium bg-emerald-950/90 border border-emerald-500/50 text-emerald-200";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 mr-1.5"></i> <strong>Абсолютно вірно!</strong> ${opt.hint}`;
+                btnElem.classList.add('border-emerald-500', 'bg-emerald-900/40');
+                addScore(CONFIG.pointsPerCorrect);
+                gameState.correctCount++;
+            } else {
+                feedback.className = "p-3.5 rounded-xl text-xs md:text-sm font-medium bg-rose-950/90 border border-rose-500/50 text-rose-200";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-xmark text-rose-400 mr-1.5"></i> <strong>Невірно.</strong> ${opt.hint}`;
+                btnElem.classList.add('border-rose-500', 'bg-rose-900/40');
+                reduceLife();
+            }
+
+            document.getElementById('l4-next-btn').classList.remove('hidden');
+        }
+
+        function nextL4Step() {
+            gameState.l4Step++;
+            if (gameState.l4Step < CONFIG.level4Tasks.length && gameState.lives > 0) {
+                loadL4Step();
+            } else {
+                finishGame();
+            }
+        }
+
+        /* ==========================================================================
+           FINISH & CERTIFICATE LOGIC
+           ========================================================================== */
+        function finishGame() {
+            document.getElementById('level-1').classList.add('hidden');
+            document.getElementById('level-2').classList.add('hidden');
+            document.getElementById('level-3').classList.add('hidden');
+            document.getElementById('level-4').classList.add('hidden');
+            document.getElementById('cert-screen').classList.remove('hidden');
+
+            const totalQuestions = CONFIG.level1Tasks.length + CONFIG.level2Tasks.length + CONFIG.level3Tasks.length + CONFIG.level4Tasks.length;
+            const percent = Math.round((gameState.correctCount / totalQuestions) * 100);
+
+            document.getElementById('final-score').innerText = gameState.score;
+            document.getElementById('final-percent').innerText = `${percent}%`;
+            document.getElementById('final-answers').innerText = `${gameState.correctCount}/${totalQuestions}`;
+            document.getElementById('final-lives').innerText = gameState.lives;
+
+            const rankElem = document.getElementById('final-rank');
+            const feedbackElem = document.getElementById('final-feedback-text');
+
+            if (gameState.lives <= 0) {
+                rankElem.innerText = "Потрібно повторити матеріали ⚠️";
+                rankElem.className = "text-xl md:text-2xl font-extrabold text-rose-400";
+                feedbackElem.innerText = "Ви вичерпали всі спроби. Спробуйте пройти лабораторну ще раз, звертаючи увагу на призначення пунктів меню dat.A.";
+            } else if (percent >= 85) {
+                rankElem.innerText = "Senior Database Administrator 🏆";
+                rankElem.className = "text-xl md:text-2xl font-extrabold text-emerald-400";
+                feedbackElem.innerText = "Блискучий результат! Ви виявили досконалі знання принципів побудови баз даних та роботи у СУБД dat.A.";
+            } else if (percent >= 60) {
+                rankElem.innerText = "Database Analyst 📊";
+                rankElem.className = "text-xl md:text-2xl font-extrabold text-sky-400";
+                feedbackElem.innerText = "Добре виконано! Ви добре орієнтуєтеся у реляційних таблицях, полях та меню СУБД.";
+            } else {
+                rankElem.innerText = "Junior Data Operator ✏️";
+                rankElem.className = "text-xl md:text-2xl font-extrabold text-amber-400";
+                feedbackElem.innerText = "Базовий рівень засвоєно! Рекомендуємо повторити правила призначення Первинного ключа.";
+            }
+
+            updateHeaderUI();
+        }
+
+        function restartInteractive() {
+            gameState = {
+                currentLevel: 1,
+                l1Step: 0,
+                l2Step: 0,
+                l3Step: 0,
+                l4Step: 0,
+                score: 0,
+                lives: CONFIG.maxLives,
+                correctCount: 0,
+                totalAnswered: 0
+            };
+
+            document.getElementById('cert-screen').classList.add('hidden');
+            updateHeaderUI();
+            startGame();
+        }
+    </script>
+</body>
+</html>
